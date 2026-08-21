@@ -28,6 +28,7 @@ const TimetablePage = () => {
   const [timetable, setTimetable] = useState<TimetableSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
   const role = localStorage.getItem('role');
 
   useEffect(() => {
@@ -72,7 +73,6 @@ const TimetablePage = () => {
     return <div className="p-8 text-red-500">Error: {error}</div>;
   }
 
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async () => {
     try {
