@@ -5,11 +5,21 @@ import { authorizeRole, AuthRequest } from '../middleware/authMiddleware';
 const router = express.Router();
 const prisma = new PrismaClient();
 
+import { generateTimetable } from '../services/timetableEngine';
+
 // Get timetable for the currently logged-in user
-router.get('/my', authorizeRole(['Teacher', 'Student']), async (req: AuthRequest, res) => {
+router.get('/my', authorizeRole(['Admin', 'Teacher', 'Student']), async (req: AuthRequest, res) => {
   const user = req.user!;
   
   try {
+    if (user.role === 'Admin') {
+      const timetable = await prisma.timetableSlot.findMany({
+        include: { subject: true, teacher: true, class: true, lab: true },
+        orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
+      });
+      return res.json(timetable);
+    }
+
     if (user.role === 'Student') {
       const student = await prisma.student.findUnique({ where: { id: user.id } });
       if (!student) return res.status(404).json({ error: 'Student not found' });
@@ -34,6 +44,17 @@ router.get('/my', authorizeRole(['Teacher', 'Student']), async (req: AuthRequest
     return res.status(403).json({ error: 'Role not supported for /my timetable yet' });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch your timetable' });
+  }
+});
+
+// Generate timetable (Admin only)
+router.post('/generate', authorizeRole(['Admin']), async (req, res) => {
+  try {
+    const slots = await generateTimetable();
+    return res.json({ message: 'Timetable generated successfully', count: slots.length });
+  } catch (error) {
+    console.error('Error generating timetable:', error);
+    return res.status(500).json({ error: 'Failed to generate timetable' });
   }
 });
 
