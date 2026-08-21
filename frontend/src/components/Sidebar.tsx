@@ -17,8 +17,17 @@ const Sidebar = ({ role }: SidebarProps) => {
     <div className="w-64 h-screen bg-surface border-r border-border p-4 flex flex-col">
       <div className="text-xl font-bold text-text-main mb-8">Samaytrix</div>
       <nav className="flex-1 space-y-2">
-        <div className="px-4 py-2 text-primary font-medium bg-background rounded-md">
+        <div 
+          onClick={() => navigate(`/${role.toLowerCase()}`)}
+          className="px-4 py-2 text-primary font-medium bg-background rounded-md cursor-pointer hover:bg-gray-100 transition-colors"
+        >
           Dashboard
+        </div>
+        <div 
+          onClick={() => navigate('/timetable')}
+          className="px-4 py-2 text-text-muted hover:text-text-main font-medium cursor-pointer transition-colors"
+        >
+          Timetable
         </div>
         {/* Placeholder for more links */}
       </nav>

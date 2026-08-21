@@ -6,6 +6,8 @@ import StudentDashboard from './pages/StudentDashboard';
 import ParentDashboard from './pages/ParentDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
+import TimetablePage from './pages/TimetablePage';
+
 function App() {
   return (
     <Router>
@@ -30,6 +32,11 @@ function App() {
         {/* Protected Parent Routes */}
         <Route element={<ProtectedRoute allowedRoles={['Parent']} />}>
           <Route path="/parent" element={<ParentDashboard />} />
+        </Route>
+
+        {/* Shared Timetable Route */}
+        <Route element={<ProtectedRoute allowedRoles={['Admin', 'Teacher', 'Student', 'Parent']} />}>
+          <Route path="/timetable" element={<TimetablePage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

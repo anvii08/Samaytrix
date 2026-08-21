@@ -17,6 +17,35 @@ const client_1 = require("@prisma/client");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = express_1.default.Router();
 const prisma = new client_1.PrismaClient();
+// Get timetable for the currently logged-in user
+router.get('/my', (0, authMiddleware_1.authorizeRole)(['Teacher', 'Student']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
+    try {
+        if (user.role === 'Student') {
+            const student = yield prisma.student.findUnique({ where: { id: user.id } });
+            if (!student)
+                return res.status(404).json({ error: 'Student not found' });
+            const timetable = yield prisma.timetableSlot.findMany({
+                where: { classId: student.classId },
+                include: { subject: true, teacher: true, lab: true },
+                orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
+            });
+            return res.json(timetable);
+        }
+        if (user.role === 'Teacher') {
+            const timetable = yield prisma.timetableSlot.findMany({
+                where: { teacherId: user.id },
+                include: { subject: true, class: true, lab: true },
+                orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
+            });
+            return res.json(timetable);
+        }
+        return res.status(403).json({ error: 'Role not supported for /my timetable yet' });
+    }
+    catch (error) {
+        return res.status(500).json({ error: 'Failed to fetch your timetable' });
+    }
+}));
 // Get timetable for a specific class (accessible by anyone logged in)
 router.get('/class/:classId', (0, authMiddleware_1.authorizeRole)(['Admin', 'Teacher', 'Student', 'Parent']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { classId } = req.params;
