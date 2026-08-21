@@ -42,25 +42,30 @@ const AdminDashboard = () => {
             
             <div className="bg-gray-50 p-6 rounded-sm border border-gray-200">
               <h3 className="text-lg font-medium mb-4">Timetable Operations</h3>
-              <button 
-                onClick={async () => {
-                  try {
-                    const token = localStorage.getItem('token');
-                    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-                    const res = await fetch(`${apiUrl}/api/timetable/generate`, {
-                      method: 'POST',
-                      headers: { Authorization: `Bearer ${token}` }
-                    });
-                    if (res.ok) alert('Timetable generated successfully!');
-                    else alert('Failed to generate timetable.');
-                  } catch (e) {
-                    alert('Error generating timetable');
-                  }
-                }}
-                className="bg-gray-800 text-white px-6 py-2 rounded-sm text-sm hover:bg-gray-700 transition-colors"
-              >
-                Generate New Timetable
-              </button>
+              <div className="flex gap-4">
+                <button 
+                  onClick={async () => {
+                    try {
+                      const token = localStorage.getItem('token');
+                      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+                      const res = await fetch(`${apiUrl}/api/timetable/generate`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}` }
+                      });
+                      if (res.ok) alert('Timetable generated successfully!');
+                      else alert('Failed to generate timetable.');
+                    } catch (e) {
+                      alert('Error generating timetable');
+                    }
+                  }}
+                  className="bg-gray-800 text-white px-6 py-2 rounded-sm text-sm hover:bg-gray-700 transition-colors"
+                >
+                  Generate New Timetable
+                </button>
+                <a href="/timetable" className="bg-white border border-gray-300 text-gray-700 px-6 py-2 rounded-sm text-sm hover:bg-gray-50 transition-colors">
+                  View Timetable
+                </a>
+              </div>
             </div>
           </div>
         )}
