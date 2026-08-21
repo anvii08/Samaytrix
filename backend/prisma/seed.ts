@@ -137,6 +137,25 @@ async function main() {
   await createTeacher('T_Arts1', 'T19', allPoolIds, [sMusic.id]);
   await createTeacher('T_Arts2', 'T19b', allPoolIds, [sDance.id]);
 
+  console.log('Creating Admins...');
+  await prisma.admin.createMany({
+    data: [
+      { name: 'Super Admin', email: 'admin@samaytrix.com', passwordHash },
+      { name: 'Principal Admin', email: 'principal@samaytrix.com', passwordHash }
+    ]
+  });
+
+  console.log('Creating Parents...');
+  const parent1 = await prisma.parent.create({ data: { name: 'Parent Doe', contact: 'P01', passwordHash } });
+  const parent2 = await prisma.parent.create({ data: { name: 'Parent Smith', contact: 'P02', passwordHash } });
+  const parent3 = await prisma.parent.create({ data: { name: 'Parent Lee', contact: 'P03', passwordHash } });
+
+  console.log('Creating Students...');
+  await prisma.student.create({ data: { name: 'John Doe', rollNumber: 'S01', classId: classes[0].id, passwordHash, parentId: parent1.id } });
+  await prisma.student.create({ data: { name: 'Jane Doe', rollNumber: 'S02', classId: classes[0].id, passwordHash, parentId: parent1.id } });
+  await prisma.student.create({ data: { name: 'Sam Smith', rollNumber: 'S03', classId: classes[1].id, passwordHash, parentId: parent2.id } });
+  await prisma.student.create({ data: { name: 'Lisa Lee', rollNumber: 'S04', classId: classes[8].id, passwordHash, parentId: parent3.id } });
+
 }
 
 main()
