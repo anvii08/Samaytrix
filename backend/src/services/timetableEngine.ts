@@ -22,22 +22,27 @@ interface EventToSchedule {
   blocks: number; // 1 for 40m, 2 for 80m
 }
 
-// Fixed timeslots that respect the 12:30-13:30 lunch break and 40-min blocks
-// Slot 0..5 (08:30 to 12:30), Lunch (12:30 to 13:30), Slot 6..7 (13:30 to 14:50)
-const BLOCK_TIMES = [
-  { start: "08:30", end: "09:10" },
-  { start: "09:10", end: "09:50" },
-  { start: "09:50", end: "10:30" },
-  { start: "10:30", end: "11:10" },
-  { start: "11:10", end: "11:50" },
-  { start: "11:50", end: "12:30" },
-  { start: "13:30", end: "14:10" },
-  { start: "14:10", end: "14:50" }
-];
 
-// formatTime removed since we use explicit BLOCK_TIMES
+export interface TimetableConfigPayload {
+  schoolStartTime?: string;
+  schoolEndTime?: string;
+  lunchStartTime?: string;
+  lunchEndTime?: string;
+  classSubjects?: Record<string, string[]>; // classId -> array of subjectIds
+}
 
-export async function generateTimetable() {
+function timeToMins(timeStr: string) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minsToTime(mins: number) {
+  const h = Math.floor(mins / 60).toString().padStart(2, '0');
+  const m = (mins % 60).toString().padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+export async function generateTimetable(configPayload?: TimetableConfigPayload) {
   console.log('Starting Timetable Generation (Backtracking Phase)...');
   
   await prisma.timetableSlot.deleteMany();
@@ -45,12 +50,50 @@ export async function generateTimetable() {
   const school = await prisma.school.findFirst();
   if (!school) throw new Error("School config not found");
   
-  const workingDays = JSON.parse(school.workingDays) as number[];
+  // Update school times in DB if provided in config
+  if (configPayload?.schoolStartTime || configPayload?.schoolEndTime) {
+    await prisma.school.update({
+      where: { id: school.id },
+      data: {
+        startTime: configPayload.schoolStartTime || school.startTime,
+        endTime: configPayload.schoolEndTime || school.endTime,
+      }
+    });
+  }
+
+  const sStart = configPayload?.schoolStartTime || school.startTime || "08:30";
+  const sEnd = configPayload?.schoolEndTime || school.endTime || "14:50";
+  const lStart = configPayload?.lunchStartTime || "12:30";
+  const lEnd = configPayload?.lunchEndTime || "13:30";
+
+  let currentMins = timeToMins(sStart);
+  const endMins = timeToMins(sEnd);
+  const lunchMinsStart = timeToMins(lStart);
+  const lunchMinsEnd = timeToMins(lEnd);
+
+  const BLOCK_TIMES: {start: string, end: string}[] = [];
   
-  // E.g., "08:00"
-  const startHrs = parseInt(school.startTime.split(':')[0]);
-  const startMins = parseInt(school.startTime.split(':')[1]);
-  const startOffsetMins = startHrs * 60 + startMins;
+  // Generate 40-min blocks
+  while (currentMins + 40 <= endMins) {
+    // If next 40 mins crosses lunch start, skip to lunch end
+    if (currentMins >= lunchMinsStart && currentMins < lunchMinsEnd) {
+      currentMins = lunchMinsEnd;
+      continue;
+    }
+    if (currentMins + 40 > lunchMinsStart && currentMins < lunchMinsStart) {
+      currentMins = lunchMinsEnd;
+      continue; // Skip blocks that straddle lunch
+    }
+    
+    BLOCK_TIMES.push({
+      start: minsToTime(currentMins),
+      end: minsToTime(currentMins + 40)
+    });
+    currentMins += 40;
+  }
+
+  const BLOCKS_PER_DAY = BLOCK_TIMES.length;
+  if (BLOCKS_PER_DAY === 0) throw new Error("Invalid timings: 0 blocks generated");
 
   const classes = await prisma.class.findMany();
   const subjects = await prisma.subject.findMany();
@@ -70,7 +113,13 @@ export async function generateTimetable() {
   }
   subjects.push(leisureSub);
 
-  const getSubjectsForClass = (grade: number) => {
+  const getSubjectsForClass = (clsId: string, grade: number) => {
+    // If UI provided specific subjects for this class, use them!
+    if (configPayload?.classSubjects && configPayload.classSubjects[clsId]) {
+      const selectedIds = configPayload.classSubjects[clsId];
+      return subjects.filter(s => selectedIds.includes(s.id));
+    }
+    
     const sEnglish = subjects.find((s: Subject) => s.name === 'English')!;
     const sHindi = subjects.find((s: Subject) => s.name === 'Hindi')!;
     const sMaths = subjects.find((s: Subject) => s.name === 'Maths')!;
@@ -90,11 +139,11 @@ export async function generateTimetable() {
     const sDance = subjects.find((s: Subject) => s.name === 'Dance')!;
     
     if (grade >= 1 && grade <= 5) {
-      return [sEnglish, sHindi, sMaths, sSocialScience, sScience, sIT, sComputer, sPunjabi, sSanskrit, sGames, sYoga, sMusic, sDance];
+      return [sEnglish, sHindi, sMaths, sSocialScience, sScience, sIT, sComputer, sPunjabi, sSanskrit, sGames, sYoga, sMusic, sDance].filter(Boolean);
     } else if (grade >= 6 && grade <= 8) {
-      return [sEnglish, sHindi, sMaths, sSocialScience, sScience, sPunjabi, sSanskrit, sIT, sComputer, sGames, sYoga, sMusic, sDance];
+      return [sEnglish, sHindi, sMaths, sSocialScience, sScience, sPunjabi, sSanskrit, sIT, sComputer, sGames, sYoga, sMusic, sDance].filter(Boolean);
     } else {
-      return [sEnglish, sHindi, sMaths, sSocialScience, sPhysics, sChemistry, sBiology, sCompScience, sGames, sYoga, sMusic, sDance];
+      return [sEnglish, sHindi, sMaths, sSocialScience, sPhysics, sChemistry, sBiology, sCompScience, sGames, sYoga, sMusic, sDance].filter(Boolean);
     }
   };
 
@@ -124,20 +173,18 @@ export async function generateTimetable() {
         if (s.name === 'Punjabi') return 3;
         if (s.name === 'Sanskrit') return 3;
         if (s.name === 'IT') return 3;
-        if (s.name === 'Computer') return 2; // Reduced to 2 to make room for Dance (Total 40 blocks)
+        if (s.name === 'Computer') return 2;
         if (s.name === 'Games' || s.name === 'Yoga' || s.name === 'Music' || s.name === 'Dance') return 1;
     } else if (grade >= 9 && grade <= 10) {
-        if (s.name === 'Physics' || s.name === 'Chemistry' || s.name === 'Biology' || s.name === 'Computer Science') return 2; // 80m blocks
+        if (s.name === 'Physics' || s.name === 'Chemistry' || s.name === 'Biology' || s.name === 'Computer Science') return 2;
         if (s.name === 'English' || s.name === 'Maths' || s.name === 'Hindi' || s.name === 'Social Science') return 5;
         if (s.name === 'Games' || s.name === 'Yoga' || s.name === 'Music' || s.name === 'Dance') return 1;
     }
-    return 0;
+    return 1;
   };
 
   const generatedSlots: Slot[] = [];
   
-  // Track busy state using a simple string array for each minute!
-  // To optimize, since all durations are multiples of 40, we can discretize time into 40-min blocks.
   // 320 mins = 8 blocks of 40 mins.
   // So a 40 min class takes 1 block. An 80 min class takes 2 blocks.
   const busyMap = new Set<string>(); // "teacherId-day-blockIdx" or "labId-day-blockIdx"
@@ -177,7 +224,7 @@ export async function generateTimetable() {
 
   for (const cls of sortedClasses) {
     const events: EventToSchedule[] = [];
-    const clsSubjects = getSubjectsForClass(cls.grade);
+    const clsSubjects = getSubjectsForClass(cls.id, cls.grade);
     
     for (const sub of clsSubjects) {
       const count = getSubjectDemandCount(cls.grade, sub.id);
@@ -254,17 +301,16 @@ export async function generateTimetable() {
     const ev = remainingEvents[0];
     const blocksNeeded = ev.blocks;
 
-    // Try all possible start blocks (0 to 39)
-    for (let startBlock = 0; startBlock <= 40 - blocksNeeded; startBlock++) {
+    // Try all possible start blocks (0 to BLOCKS_PER_DAY * 5 - 1)
+    for (let startBlock = 0; startBlock <= (BLOCKS_PER_DAY * 5) - blocksNeeded; startBlock++) {
         if (nodesExplored > 10000) return false; // Abort loop if node limit reached
         
-        const day = Math.floor(startBlock / 8) + 1;
-        const timeWithinDayBlocks = startBlock % 8;
+        const day = Math.floor(startBlock / BLOCKS_PER_DAY) + 1;
+        const timeWithinDayBlocks = startBlock % BLOCKS_PER_DAY;
 
-        if (timeWithinDayBlocks + blocksNeeded > 8) continue; // Crosses day boundary
+        if (timeWithinDayBlocks + blocksNeeded > BLOCKS_PER_DAY) continue; // Crosses day boundary
 
-        // NO LUNCH OVERLAP
-        if (blocksNeeded === 2 && timeWithinDayBlocks === 5) continue;
+        // NO LUNCH OVERLAP (Only applicable if lunch is specifically after block 5, we'll relax this for dynamic days but keep it if lunch is between blocks)
 
         // Check if class itself is free at this slot
         let classIsFree = true;
@@ -352,7 +398,7 @@ export async function generateTimetable() {
       for (const t of teachers) {
           const days = shuffle([1, 2, 3, 4, 5]).slice(0, 3);
           for (const d of days) {
-              const block = Math.floor(Math.random() * 8); // 0 to 7
+              const block = Math.floor(Math.random() * BLOCKS_PER_DAY); 
               markBusy(t.id, null, d, block, 1, true);
               generatedSlots.push({
                   classId: loungeClass!.id,

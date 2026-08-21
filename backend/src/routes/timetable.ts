@@ -47,10 +47,36 @@ router.get('/my', authorizeRole(['Admin', 'Teacher', 'Student']), async (req: Au
   }
 });
 
+// Get timetable generator config (Admin only)
+router.get('/config', authorizeRole(['Admin']), async (req, res) => {
+  try {
+    const school = await prisma.school.findFirst();
+    const classes = await prisma.class.findMany({ orderBy: [{ grade: 'asc' }, { section: 'asc' }] });
+    const subjects = await prisma.subject.findMany({ orderBy: { name: 'asc' } });
+    const teachers = await prisma.teacher.findMany({
+      include: { subjects: true },
+      orderBy: { name: 'asc' }
+    });
+    const labs = await prisma.lab.findMany({ orderBy: { name: 'asc' } });
+    
+    return res.json({
+      school,
+      classes,
+      subjects,
+      teachers,
+      labs
+    });
+  } catch (error) {
+    console.error('Error fetching timetable config:', error);
+    return res.status(500).json({ error: 'Failed to fetch timetable configuration' });
+  }
+});
+
 // Generate timetable (Admin only)
 router.post('/generate', authorizeRole(['Admin']), async (req, res) => {
   try {
-    const slots = await generateTimetable();
+    const configPayload = req.body;
+    const slots = await generateTimetable(configPayload);
     return res.json({ message: 'Timetable generated successfully', count: slots.length });
   } catch (error) {
     console.error('Error generating timetable:', error);

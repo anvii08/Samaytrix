@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import TimetableGeneratorForm from '../components/TimetableGeneratorForm';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState<'users' | 'classes' | 'notices'>('notices');
+  const [activeTab, setActiveTab] = useState<'users' | 'classes' | 'notices' | 'timetable'>('notices');
 
   return (
     <div className="max-w-6xl mx-auto p-8 bg-gray-50 min-h-screen text-gray-800 font-sans">
@@ -12,7 +13,7 @@ const AdminDashboard = () => {
 
       {/* Tabs */}
       <div className="flex space-x-6 border-b border-gray-200 mb-8 overflow-x-auto">
-        {['users', 'classes', 'notices'].map((tab) => (
+        {['users', 'classes', 'notices', 'timetable'].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab as any)}
@@ -93,6 +94,14 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'timetable' && (
+          <div>
+            <h2 className="text-xl font-medium mb-6">Timetable Generator</h2>
+            <p className="text-gray-500 text-sm mb-8">Configure school timings and subjects to automatically generate the master timetable.</p>
+            <TimetableGeneratorForm />
           </div>
         )}
       </div>
