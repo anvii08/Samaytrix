@@ -13,7 +13,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Login />} />
-        
+
         {/* Protected Admin Routes */}
         <Route element={<ProtectedRoute allowedRoles={['Admin']} />}>
           <Route path="/admin" element={<AdminDashboard />} />
