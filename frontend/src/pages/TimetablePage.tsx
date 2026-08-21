@@ -72,11 +72,57 @@ const TimetablePage = () => {
     return <div className="p-8 text-red-500">Error: {error}</div>;
   }
 
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    try {
+      setIsGenerating(true);
+      const token = localStorage.getItem('token');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const res = await fetch(`${apiUrl}/api/timetable/generate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        alert('Timetable generated successfully!');
+        // Refresh the timetable
+        const response = await fetch(`${apiUrl}/api/timetable/my`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setTimetable(data);
+        }
+      } else {
+        alert('Failed to generate timetable.');
+      }
+    } catch (e) {
+      alert('Error generating timetable');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto p-8 bg-gray-50 min-h-screen text-gray-800 font-sans">
-      <header className="mb-8">
-        <h1 className="text-3xl font-light text-gray-900 tracking-tight">Weekly Timetable</h1>
-        <p className="text-gray-500 mt-2">Here is your schedule for the week.</p>
+      <header className="mb-8 flex justify-between items-end">
+        <div>
+          <h1 className="text-3xl font-light text-gray-900 tracking-tight">Weekly Timetable</h1>
+          <p className="text-gray-500 mt-2">Here is your schedule for the week.</p>
+        </div>
+        {role === 'Admin' && (
+          <button 
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className={`px-6 py-2 rounded-sm text-sm transition-colors ${
+              isGenerating 
+                ? 'bg-gray-400 text-white cursor-not-allowed' 
+                : 'bg-gray-800 text-white hover:bg-gray-700'
+            }`}
+          >
+            {isGenerating ? 'Generating...' : 'Create Timetable'}
+          </button>
+        )}
       </header>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
