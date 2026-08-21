@@ -110,7 +110,7 @@ const TimetablePage = () => {
           <h1 className="text-3xl font-light text-gray-900 tracking-tight">Weekly Timetable</h1>
           <p className="text-gray-500 mt-2">Here is your schedule for the week.</p>
         </div>
-        {role === 'Admin' && (
+        {String(role).toLowerCase() === 'admin' && (
           <button 
             onClick={handleGenerate}
             disabled={isGenerating}
