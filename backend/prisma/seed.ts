@@ -5,8 +5,8 @@ const prisma = new PrismaClient();
 
 async function main() {
   const passwordHash = await bcrypt.hash('password123', 10);
-  const schoolCount = await prisma.school.count();
-  if (schoolCount > 0) {
+  const adminCount = await prisma.admin.count();
+  if (adminCount > 0) {
     console.log('Database already seeded. Skipping.');
     return;
   }
